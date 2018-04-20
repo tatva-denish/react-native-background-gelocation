@@ -1,0 +1,101 @@
+// Notice: Oreo builds are disabled by default until all problems are resolved!!!
+//
+// For Oreo compatibility we are forced to use supportLibVersion >= 26.1.0
+// Unfortunately Android stopped supporting downloading libraries through the SDK Manager,
+// @see https://developer.android.com/topic/libraries/support-library/setup.html
+//
+// You can enable oreo by adding following into root build.gradle:
+//
+// allprojects {
+//   repositories {
+//     maven { url 'https://maven.google.com' }
+//   }
+// }
+//
+// ext {
+//   compileSdkVersion = 26
+//   targetSdkVersion = 26
+//   buildToolsVersion = "26.0.2"
+//   supportLibVersion = "26.1.0"
+//   googlePlayServicesVersion = "11.8.0"
+//   oreoEXPERIMENTAL = "hellyes"
+// }
+//
+//
+// If you don't like this please ask react guys nicely to add google maven repo into
+// their templates.
+
+apply plugin: 'com.android.library'
+
+def DEFAULT_COMPILE_SDK_VERSION = 23
+def DEFAULT_BUILD_TOOLS_VERSION = "23.0.1"
+def DEFAULT_TARGET_SDK_VERSION = 23
+def DEFAULT_PLAY_SERVICES_VERSION = "11+"
+def DEFAULT_SUPPORT_LIB_VERSION = "23.0.1"
+
+def applicationId = ""
+if (findProject(':app') != null) {
+    applicationId = project(':app').android.defaultConfig.applicationId
+}
+
+def projectFlavor = "preoreo"
+if (rootProject.hasProperty('oreoEXPERIMENTAL')) {
+    projectFlavor = "oreo"
+}
+
+// Check for application-defined play-services version
+def playServicesVersion = DEFAULT_PLAY_SERVICES_VERSION
+if (rootProject.hasProperty('playServicesVersion')) {
+    playServicesVersion = rootProject.playServicesVersion
+} else if (rootProject.hasProperty('googlePlayServicesVersion')) {
+    playServicesVersion = rootProject.googlePlayServicesVersion
+}
+
+def supportLibVersion = DEFAULT_SUPPORT_LIB_VERSION
+if (rootProject.hasProperty('supportLibVersion')) {
+    supportLibVersion = rootProject.supportLibVersion
+}
+
+repositories {
+    jcenter()
+    // Google dependencies are now hosted at Maven
+    // unfortunately this is ignored when installing as react-native plugin
+    maven {
+        url 'https://maven.google.com'
+    }
+}
+
+android {
+    compileSdkVersion rootProject.hasProperty('compileSdkVersion') ? rootProject.compileSdkVersion : DEFAULT_COMPILE_SDK_VERSION
+    buildToolsVersion rootProject.hasProperty('buildToolsVersion') ? rootProject.buildToolsVersion : DEFAULT_BUILD_TOOLS_VERSION
+
+    defaultConfig {
+        resValue "string", "content_authority", applicationId + '.provider'
+        resValue "string", "account_type", applicationId
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        minSdkVersion 16
+        targetSdkVersion rootProject.hasProperty('targetSdkVersion') ? rootProject.targetSdkVersion : DEFAULT_TARGET_SDK_VERSION
+        versionCode 1 // intentionally not updating version as we're not uploading to any java repository
+        versionName "1.0"
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+}
+
+dependencies {
+    releaseCompile project(path: ':react-native-mauron85-background-geolocation-common', configuration: "${projectFlavor}Release")
+    debugCompile project(path: ':react-native-mauron85-background-geolocation-common', configuration: "${projectFlavor}Debug")
+    compile 'com.facebook.react:react-native:+'
+    compile "com.google.android.gms:play-services-location:$playServicesVersion"
+    if (projectFlavor == "oreo") {
+        compile "com.android.support:support-compat:$supportLibVersion"
+        // Because of play services version 11, we need to override it's support-v4 library!
+        // You can check dependency graph: ./gradlew app:dependencies --configuration compile
+        compile "com.android.support:support-v4:$supportLibVersion"
+    }
+    compile 'com.github.tony19:logback-android:1.1.1-9'
+    compile 'org.slf4j:slf4j-api:1.7.21'
+    compile 'com.intentfilter:android-permissions:0.1.6'
+}
